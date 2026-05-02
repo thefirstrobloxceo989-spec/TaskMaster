@@ -1,0 +1,1066 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>WordlyWiser 2</title>
+  <meta name="description" content="WordlyWiser 2 connected game library">
+  <link id="page-favicon" rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23111827'/%3E%3Cpath d='M14 22h36v20H14z' fill='%2338bdf8'/%3E%3Cpath d='M22 28h20v4H22zm0 8h13v4H22z' fill='white'/%3E%3C/svg%3E">
+  <style>
+    :root {
+      --bg: #090b10;
+      --panel: #10151f;
+      --panel-2: #151d2b;
+      --line: #273244;
+      --text: #eef4ff;
+      --muted: #9fb0c7;
+      --accent: #23c6a8;
+      --accent-2: #ffcf5a;
+      --danger: #ff6b6b;
+      --shadow: 0 20px 70px rgba(0, 0, 0, .34);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        linear-gradient(180deg, rgba(35, 198, 168, .14), transparent 34rem),
+        radial-gradient(circle at 82% 14%, rgba(255, 207, 90, .12), transparent 22rem),
+        var(--bg);
+    }
+
+    button, input, select {
+      font: inherit;
+    }
+
+    button {
+      cursor: pointer;
+    }
+
+    .shell {
+      width: min(1480px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 24px 0 40px;
+    }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      padding: 14px 0 24px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .mark {
+      display: grid;
+      place-items: center;
+      width: 44px;
+      height: 44px;
+      border: 1px solid rgba(255, 255, 255, .12);
+      border-radius: 8px;
+      background: linear-gradient(135deg, var(--accent), #3b82f6);
+      color: #051016;
+      font-weight: 900;
+      box-shadow: 0 10px 28px rgba(35, 198, 168, .22);
+      flex: 0 0 auto;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(1.8rem, 4vw, 4.2rem);
+      line-height: .98;
+      letter-spacing: 0;
+    }
+
+    .subtitle {
+      margin: 6px 0 0;
+      color: var(--muted);
+      font-size: .96rem;
+    }
+
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .btn, .icon-btn, .chip {
+      min-height: 42px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      color: var(--text);
+      background: rgba(16, 21, 31, .9);
+      transition: transform .15s ease, border-color .15s ease, background .15s ease;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 14px;
+      font-weight: 700;
+    }
+
+    .icon-btn {
+      display: grid;
+      place-items: center;
+      width: 44px;
+      padding: 0;
+      font-size: 1rem;
+      font-weight: 900;
+    }
+
+    .btn:hover, .icon-btn:hover, .chip:hover {
+      transform: translateY(-1px);
+      border-color: rgba(35, 198, 168, .75);
+      background: var(--panel-2);
+    }
+
+    .primary {
+      border-color: transparent;
+      color: #06110f;
+      background: var(--accent);
+    }
+
+    .danger {
+      border-color: rgba(255, 107, 107, .35);
+      color: #ffe1e1;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(430px, 42%);
+      gap: 18px;
+      align-items: start;
+    }
+
+    .library, .player, .cloak-panel {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(16, 21, 31, .82);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(16px);
+    }
+
+    .library {
+      min-height: 78vh;
+      overflow: hidden;
+    }
+
+    .library-head {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 170px;
+      gap: 10px;
+      padding: 14px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(9, 11, 16, .34);
+    }
+
+    .search, .select, .cloak-input {
+      width: 100%;
+      height: 44px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      color: var(--text);
+      background: #0b1018;
+      padding: 0 12px;
+      outline: 0;
+    }
+
+    .search:focus, .select:focus, .cloak-input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(35, 198, 168, .16);
+    }
+
+    .stats {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      padding: 12px 14px 0;
+      color: var(--muted);
+      font-size: .85rem;
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      padding: 0 10px;
+      height: 32px;
+      min-height: 32px;
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+      gap: 12px;
+      padding: 14px;
+    }
+
+    .game-card {
+      min-width: 0;
+      border: 1px solid rgba(255, 255, 255, .08);
+      border-radius: 8px;
+      overflow: hidden;
+      color: var(--text);
+      background: #0d131d;
+      text-align: left;
+      padding: 0;
+    }
+
+    .game-card:hover {
+      border-color: rgba(255, 207, 90, .7);
+      transform: translateY(-2px);
+    }
+
+    .game-card.active {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px rgba(35, 198, 168, .18);
+    }
+
+    .cover-wrap {
+      position: relative;
+      aspect-ratio: 1 / 1;
+      background: linear-gradient(135deg, #182133, #0b1018);
+      overflow: hidden;
+    }
+
+    .cover-wrap img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .source-tag {
+      position: absolute;
+      left: 8px;
+      top: 8px;
+      max-width: calc(100% - 16px);
+      padding: 4px 7px;
+      border-radius: 6px;
+      background: rgba(5, 10, 16, .76);
+      color: #d8e5f7;
+      font-size: .68rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .game-name {
+      min-height: 48px;
+      padding: 10px;
+      font-size: .86rem;
+      font-weight: 800;
+      line-height: 1.2;
+      overflow-wrap: anywhere;
+    }
+
+    .player {
+      position: sticky;
+      top: 16px;
+      overflow: hidden;
+    }
+
+    .screen {
+      aspect-ratio: 16 / 10;
+      background:
+        linear-gradient(135deg, rgba(35, 198, 168, .2), rgba(255, 207, 90, .09)),
+        #05080d;
+      border-bottom: 1px solid var(--line);
+    }
+
+    iframe {
+      width: 100%;
+      height: 100%;
+      border: 0;
+      display: block;
+      background: #05080d;
+    }
+
+    .empty-screen {
+      height: 100%;
+      display: grid;
+      place-items: center;
+      padding: 28px;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    .player-info {
+      display: grid;
+      grid-template-columns: 54px minmax(0, 1fr);
+      gap: 12px;
+      padding: 14px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .current-cover {
+      width: 54px;
+      height: 54px;
+      border-radius: 8px;
+      object-fit: cover;
+      background: var(--panel-2);
+    }
+
+    .current-title {
+      margin: 2px 0 6px;
+      font-size: 1rem;
+      overflow-wrap: anywhere;
+    }
+
+    .current-url {
+      color: var(--muted);
+      font-size: .8rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .controls {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      padding: 14px;
+    }
+
+    .controls .btn {
+      justify-content: center;
+      min-width: 0;
+      text-align: center;
+    }
+
+    .embed-box {
+      margin: 0 14px 14px;
+      display: none;
+    }
+
+    .embed-box.show {
+      display: block;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 82px;
+      resize: vertical;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      color: var(--text);
+      background: #0b1018;
+      padding: 10px;
+      font: 12px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+
+    .load-row {
+      display: flex;
+      justify-content: center;
+      padding: 4px 14px 18px;
+    }
+
+    .status {
+      padding: 14px;
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    .cloak-panel {
+      display: none;
+      margin-top: 18px;
+      padding: 14px;
+    }
+
+    .cloak-panel.open {
+      display: block;
+    }
+
+    .cloak-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .cloak-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 12px;
+    }
+
+    .preset-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+    }
+
+    .toast {
+      position: fixed;
+      right: 18px;
+      bottom: 18px;
+      max-width: min(360px, calc(100% - 36px));
+      padding: 12px 14px;
+      border: 1px solid rgba(35, 198, 168, .45);
+      border-radius: 8px;
+      background: #0b1018;
+      color: var(--text);
+      box-shadow: var(--shadow);
+      opacity: 0;
+      transform: translateY(10px);
+      pointer-events: none;
+      transition: .2s ease;
+      z-index: 20;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    @media (max-width: 980px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      .player {
+        position: static;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .shell {
+        width: min(100% - 20px, 1480px);
+        padding-top: 12px;
+      }
+
+      .topbar, .toolbar {
+        align-items: stretch;
+        flex-direction: column;
+      }
+
+      .toolbar {
+        width: 100%;
+      }
+
+      .toolbar .btn, .toolbar .icon-btn {
+        width: 100%;
+      }
+
+      .library-head, .cloak-grid, .controls {
+        grid-template-columns: 1fr;
+      }
+
+      .grid {
+        grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
+        gap: 10px;
+        padding: 10px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="mark" aria-hidden="true">W2</div>
+        <div>
+          <h1>WordlyWiser 2</h1>
+          <p class="subtitle">One connected URL for the full StudyHub-style game catalog.</p>
+        </div>
+      </div>
+      <div class="toolbar" aria-label="Page tools">
+        <button class="btn primary" id="randomBtn" type="button">Random game</button>
+        <button class="btn" id="copyLinkBtn" type="button">Copy game link</button>
+        <button class="btn" id="cloakToggle" type="button">Tab cloak</button>
+      </div>
+    </header>
+
+    <section class="cloak-panel" id="cloakPanel" aria-label="Tab appearance">
+      <strong>Tab appearance</strong>
+      <div class="preset-row">
+        <button class="chip" type="button" data-preset-title="Google Drive" data-preset-icon="drive">Google Drive</button>
+        <button class="chip" type="button" data-preset-title="Google Classroom" data-preset-icon="classroom">Classroom</button>
+        <button class="chip" type="button" data-preset-title="IXL | Math, Language Arts, Science" data-preset-icon="study">IXL</button>
+      </div>
+      <div class="cloak-grid">
+        <input class="cloak-input" id="cloakTitle" placeholder="Tab title">
+        <input class="cloak-input" id="cloakIcon" placeholder="Favicon URL or leave blank">
+      </div>
+      <div class="cloak-actions">
+        <button class="btn primary" id="applyCloak" type="button">Apply</button>
+        <button class="btn" id="resetCloak" type="button">Reset</button>
+      </div>
+    </section>
+
+    <div class="layout">
+      <section class="library" aria-label="Game library">
+        <div class="library-head">
+          <input class="search" id="searchInput" placeholder="Search all games..." autocomplete="off">
+          <select class="select" id="sourceFilter" aria-label="Filter by source">
+            <option value="all">All sources</option>
+          </select>
+        </div>
+        <div class="stats" id="stats"></div>
+        <div class="status" id="status">Loading games...</div>
+        <div class="grid" id="grid"></div>
+        <div class="load-row">
+          <button class="btn" id="loadMoreBtn" type="button">Load more</button>
+        </div>
+      </section>
+
+      <aside class="player" aria-label="Game player">
+        <div class="screen" id="screen">
+          <div class="empty-screen" id="emptyScreen">Pick a game to start playing.</div>
+          <iframe id="gameFrame" title="WordlyWiser 2 game" allow="fullscreen; autoplay; gamepad; clipboard-read; clipboard-write" allowfullscreen hidden></iframe>
+        </div>
+        <div class="player-info">
+          <img class="current-cover" id="currentCover" alt="" src="">
+          <div>
+            <h2 class="current-title" id="currentTitle">No game selected</h2>
+            <div class="current-url" id="currentUrl">Select from the library.</div>
+          </div>
+        </div>
+        <div class="controls">
+          <button class="btn primary" id="fullscreenBtn" type="button">Fullscreen</button>
+          <button class="btn" id="newTabBtn" type="button">Open new tab</button>
+          <button class="btn" id="embedBtn" type="button">Copy embed</button>
+        </div>
+        <div class="embed-box" id="embedBox">
+          <textarea id="embedCode" readonly></textarea>
+        </div>
+      </aside>
+    </div>
+  </main>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    const STUDYHUB = "https://vcsa.verandahotels.com";
+    const PLACEHOLDER = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 300 300'%3E%3Crect width='300' height='300' fill='%23151d2b'/%3E%3Cpath d='M70 110h160v80H70z' fill='%2323c6a8'/%3E%3Cpath d='M95 132h110v12H95zm0 28h72v12H95z' fill='white'/%3E%3C/svg%3E";
+    const DEFAULT_TITLE = "WordlyWiser 2";
+    const DEFAULT_ICON = document.getElementById("page-favicon").href;
+
+    const SOURCES = [
+      {
+        key: "hydra",
+        label: "Source 1",
+        load: async () => {
+          const data = await getJson("https://cdn.jsdelivr.net/gh/Hydra-Network/hydra-assets@main/gmes.json");
+          return data.map((game) => ({
+            name: game.title,
+            url: `https://cdn.jsdelivr.net/gh/Hydra-Network/hydra-assets@main/gmes/${game.file_name}`,
+            cover: `https://cdn.jsdelivr.net/gh/Hydra-Network/hydra-assets@main/${game.thumb}`,
+            source: "hydra",
+            sourceLabel: "Source 1"
+          }));
+        }
+      },
+      {
+        key: "ckv",
+        label: "Source 2",
+        load: async () => {
+          const base = "https://raw.githubusercontent.com/carbonicality/ChickenKingsVault/main";
+          const cdn = "https://cdn.jsdelivr.net/gh/carbonicality/ChickenKingsVault@main";
+          const [icons, files] = await Promise.all([
+            getJson(`${cdn}/games.json`).catch(() => []),
+            getJson("https://api.github.com/repos/carbonicality/ChickenKingsVault/contents/gamefiles/")
+          ]);
+          const iconMap = new Map();
+          icons.forEach((game) => iconMap.set(cleanKey(game.name), `${cdn}/gameimages/${game.img}`));
+          return files
+            .filter((file) => file.type === "file" && file.name.endsWith(".html") && file.name !== "index.html")
+            .map((file) => {
+              const name = file.name.replace(/\.html$/i, "");
+              return {
+                name,
+                url: `${base}/gamefiles/${file.name}`,
+                cover: iconMap.get(cleanKey(name)) || PLACEHOLDER,
+                source: "ckv",
+                sourceLabel: "Source 2"
+              };
+            });
+        }
+      },
+      {
+        key: "semag",
+        label: "Source 3",
+        load: async () => {
+          const base = "https://cdn.jsdelivr.net/gh/ciphernetwork/selenite@main";
+          const data = await getJson(`${base}/data/games.json`);
+          return data.map((game) => ({
+            name: game.name,
+            url: `${base}/semag/${game.directory}/index.html`,
+            cover: `${base}/semag/${game.directory}/${game.image}`,
+            source: "semag",
+            sourceLabel: "Source 3"
+          }));
+        }
+      },
+      {
+        key: "gnmath",
+        label: "gn-math",
+        load: async () => {
+          const data = await getJson(`${STUDYHUB}/math/gnmath.json`);
+          return data.map((game) => ({
+            name: game.name,
+            url: game.url,
+            cover: game.cover,
+            source: "gnmath",
+            sourceLabel: "gn-math"
+          }));
+        }
+      },
+      {
+        key: "gnports",
+        label: "gn-ports",
+        load: async () => {
+          const data = await getJson(`${STUDYHUB}/math/gnports.json`);
+          return data.map((game) => ({
+            name: game.name,
+            url: game.url,
+            cover: game.cover,
+            source: "gnports",
+            sourceLabel: "gn-ports"
+          }));
+        }
+      },
+      {
+        key: "studyhub",
+        label: "StudyHub",
+        load: async () => {
+          const data = await getJson(`${STUDYHUB}/math/list`);
+          return data.map((game) => ({
+            name: game.name,
+            url: new URL(game.path, STUDYHUB).href,
+            cover: game.image ? new URL(game.image, STUDYHUB).href : PLACEHOLDER,
+            source: "studyhub",
+            sourceLabel: "StudyHub"
+          }));
+        }
+      }
+    ];
+
+    const state = {
+      allGames: [],
+      filteredGames: [],
+      selected: null,
+      visible: 120,
+      query: "",
+      source: "all",
+      columns: 1
+    };
+
+    const els = {
+      grid: document.getElementById("grid"),
+      status: document.getElementById("status"),
+      stats: document.getElementById("stats"),
+      sourceFilter: document.getElementById("sourceFilter"),
+      searchInput: document.getElementById("searchInput"),
+      loadMoreBtn: document.getElementById("loadMoreBtn"),
+      gameFrame: document.getElementById("gameFrame"),
+      emptyScreen: document.getElementById("emptyScreen"),
+      currentCover: document.getElementById("currentCover"),
+      currentTitle: document.getElementById("currentTitle"),
+      currentUrl: document.getElementById("currentUrl"),
+      embedBox: document.getElementById("embedBox"),
+      embedCode: document.getElementById("embedCode"),
+      toast: document.getElementById("toast")
+    };
+
+    SOURCES.forEach((source) => {
+      const option = document.createElement("option");
+      option.value = source.key;
+      option.textContent = source.label;
+      els.sourceFilter.appendChild(option);
+    });
+
+    document.getElementById("fullscreenBtn").addEventListener("click", fullscreenGame);
+    document.getElementById("newTabBtn").addEventListener("click", openFullscreenTab);
+    document.getElementById("embedBtn").addEventListener("click", copyEmbed);
+    document.getElementById("copyLinkBtn").addEventListener("click", copyGameLink);
+    document.getElementById("randomBtn").addEventListener("click", openRandom);
+    document.getElementById("loadMoreBtn").addEventListener("click", () => {
+      state.visible += 120;
+      renderGames();
+    });
+    els.searchInput.addEventListener("input", () => {
+      state.query = els.searchInput.value.trim().toLowerCase();
+      state.visible = 120;
+      applyFilters();
+    });
+    els.sourceFilter.addEventListener("change", () => {
+      state.source = els.sourceFilter.value;
+      state.visible = 120;
+      applyFilters();
+    });
+
+    document.getElementById("cloakToggle").addEventListener("click", () => {
+      document.getElementById("cloakPanel").classList.toggle("open");
+    });
+    document.getElementById("applyCloak").addEventListener("click", applyCloak);
+    document.getElementById("resetCloak").addEventListener("click", resetCloak);
+    document.querySelectorAll("[data-preset-title]").forEach((button) => {
+      button.addEventListener("click", () => {
+        document.getElementById("cloakTitle").value = button.dataset.presetTitle;
+        document.getElementById("cloakIcon").value = presetIcon(button.dataset.presetIcon);
+        applyCloak();
+      });
+    });
+
+    window.addEventListener("popstate", () => openFromUrl());
+    window.addEventListener("resize", debounce(() => {
+      const columns = getGridColumns();
+      if (columns === state.columns) return;
+      state.columns = columns;
+      applyFilters();
+    }, 140));
+
+    restoreCloak();
+    loadCatalog();
+
+    async function loadCatalog() {
+      const results = await Promise.allSettled(SOURCES.map((source) => source.load()));
+      const games = [];
+      const sourceCounts = new Map();
+
+      results.forEach((result, index) => {
+        const source = SOURCES[index];
+        if (result.status === "fulfilled") {
+          const sourceGames = result.value.filter((game) => game.name && game.url);
+          games.push(...sourceGames);
+          sourceCounts.set(source.key, sourceGames.length);
+        } else {
+          sourceCounts.set(source.key, 0);
+        }
+      });
+
+      state.allGames = shuffleArray(dedupeGames(games));
+      renderStats(sourceCounts);
+      applyFilters();
+      openFromUrl();
+    }
+
+    function applyFilters() {
+      const filtered = state.allGames.filter((game) => {
+        const matchesQuery = !state.query || game.name.toLowerCase().includes(state.query);
+        const matchesSource = state.source === "all" || game.source === state.source;
+        return matchesQuery && matchesSource;
+      });
+      state.columns = getGridColumns();
+      state.filteredGames = rowAwareShuffle(filtered, state.columns);
+      renderGames();
+    }
+
+    function renderStats(sourceCounts) {
+      const loaded = state.allGames.length;
+      const chips = [`<span class="chip">${loaded.toLocaleString()} games loaded</span>`];
+      SOURCES.forEach((source) => {
+        const count = sourceCounts.get(source.key) || 0;
+        chips.push(`<span class="chip">${source.label}: ${count.toLocaleString()}</span>`);
+      });
+      els.stats.innerHTML = chips.join("");
+      els.status.textContent = loaded
+        ? "All available StudyHub sources are connected. Search, filter, or open a game."
+        : "No games loaded. Check the source connections and try refreshing.";
+    }
+
+    function renderGames() {
+      const shown = state.filteredGames.slice(0, state.visible);
+      els.grid.innerHTML = "";
+
+      shown.forEach((game) => {
+        const card = document.createElement("button");
+        card.type = "button";
+        card.className = `game-card${state.selected && state.selected.id === game.id ? " active" : ""}`;
+        card.innerHTML = `
+          <div class="cover-wrap">
+            <img src="${escapeAttr(game.cover || PLACEHOLDER)}" alt="">
+            <span class="source-tag">${escapeHtml(game.sourceLabel)}</span>
+          </div>
+          <div class="game-name">${escapeHtml(game.name)}</div>
+        `;
+        card.querySelector("img").addEventListener("error", (event) => {
+          event.currentTarget.src = PLACEHOLDER;
+        });
+        card.addEventListener("click", () => selectGame(game, true));
+        els.grid.appendChild(card);
+      });
+
+      els.loadMoreBtn.hidden = state.visible >= state.filteredGames.length;
+      els.status.textContent = `${state.filteredGames.length.toLocaleString()} matching games. Showing ${shown.length.toLocaleString()}.`;
+    }
+
+    function selectGame(game, pushUrl) {
+      state.selected = game;
+      els.emptyScreen.hidden = true;
+      els.gameFrame.hidden = false;
+      els.gameFrame.src = game.url;
+      els.currentCover.src = game.cover || PLACEHOLDER;
+      els.currentTitle.textContent = game.name;
+      els.currentUrl.textContent = game.url;
+      els.embedCode.value = embedFor(game.url, game.name);
+      els.embedBox.classList.remove("show");
+      document.title = document.body.dataset.cloaked === "true" ? document.title : `${game.name} - WordlyWiser 2`;
+
+      if (pushUrl) {
+        const url = new URL(window.location.href);
+        url.searchParams.set("game", game.id);
+        history.pushState({ game: game.id }, "", url);
+      }
+      renderGames();
+    }
+
+    function openFromUrl() {
+      const id = new URLSearchParams(window.location.search).get("game");
+      if (!id || !state.allGames.length) return;
+      const game = state.allGames.find((entry) => entry.id === id);
+      if (game) selectGame(game, false);
+    }
+
+    function fullscreenGame() {
+      if (!state.selected) return toast("Select a game first.");
+      const target = els.gameFrame;
+      if (target.requestFullscreen) target.requestFullscreen();
+    }
+
+    function openFullscreenTab() {
+      if (!state.selected) return toast("Select a game first.");
+      const win = window.open("about:blank", "_blank");
+      if (!win) return toast("Popup blocked.");
+      const game = state.selected;
+      win.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(game.name)}</title><style>html,body{margin:0;width:100%;height:100%;background:#05080d;overflow:hidden}iframe{width:100%;height:100%;border:0}</style></head><body><iframe src="${escapeAttr(game.url)}" allow="fullscreen; autoplay; gamepad" allowfullscreen></iframe></body></html>`);
+      win.document.close();
+    }
+
+    async function copyEmbed() {
+      if (!state.selected) return toast("Select a game first.");
+      const code = embedFor(state.selected.url, state.selected.name);
+      els.embedCode.value = code;
+      els.embedBox.classList.add("show");
+      await copyText(code);
+      toast("Embed code copied.");
+    }
+
+    async function copyGameLink() {
+      if (!state.selected) return toast("Select a game first.");
+      await copyText(window.location.href);
+      toast("WordlyWiser game link copied.");
+    }
+
+    function openRandom() {
+      const pool = state.filteredGames.length ? state.filteredGames : state.allGames;
+      if (!pool.length) return toast("Games are still loading.");
+      selectGame(pool[Math.floor(Math.random() * pool.length)], true);
+    }
+
+    function applyCloak() {
+      const title = document.getElementById("cloakTitle").value.trim() || DEFAULT_TITLE;
+      const icon = document.getElementById("cloakIcon").value.trim() || DEFAULT_ICON;
+      document.title = title;
+      document.getElementById("page-favicon").href = icon;
+      document.body.dataset.cloaked = "true";
+      localStorage.setItem("wordlywiser2-cloak", JSON.stringify({ title, icon }));
+      toast("Tab appearance applied.");
+    }
+
+    function resetCloak() {
+      document.title = state.selected ? `${state.selected.name} - WordlyWiser 2` : DEFAULT_TITLE;
+      document.getElementById("page-favicon").href = DEFAULT_ICON;
+      document.body.dataset.cloaked = "false";
+      localStorage.removeItem("wordlywiser2-cloak");
+      document.getElementById("cloakTitle").value = "";
+      document.getElementById("cloakIcon").value = "";
+      toast("Tab appearance reset.");
+    }
+
+    function restoreCloak() {
+      try {
+        const saved = JSON.parse(localStorage.getItem("wordlywiser2-cloak") || "null");
+        if (!saved) return;
+        document.getElementById("cloakTitle").value = saved.title || "";
+        document.getElementById("cloakIcon").value = saved.icon || "";
+        document.title = saved.title || DEFAULT_TITLE;
+        document.getElementById("page-favicon").href = saved.icon || DEFAULT_ICON;
+        document.body.dataset.cloaked = "true";
+      } catch {
+        document.body.dataset.cloaked = "false";
+      }
+    }
+
+    function presetIcon(kind) {
+      const icons = {
+        drive: "https://ssl.gstatic.com/images/branding/product/1x/drive_2020q4_32dp.png",
+        classroom: "https://ssl.gstatic.com/classroom/favicon.png",
+        study: `${STUDYHUB}/favicon.png`
+      };
+      return icons[kind] || DEFAULT_ICON;
+    }
+
+    async function getJson(url) {
+      try {
+        const response = await fetch(url, { cache: "force-cache" });
+        if (!response.ok) throw new Error(`${response.status} ${url}`);
+        return response.json();
+      } catch (error) {
+        if (!url.startsWith(STUDYHUB)) throw error;
+        const fallback = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+        const response = await fetch(fallback, { cache: "force-cache" });
+        if (!response.ok) throw new Error(`${response.status} ${url}`);
+        return response.json();
+      }
+    }
+
+    function dedupeGames(games) {
+      const seen = new Set();
+      return games.filter((game) => {
+        const key = `${cleanKey(game.name)}|${game.url}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        game.id = slug(`${game.source}-${game.name}-${hashCode(game.url)}`);
+        game.duplicateKey = cleanKey(game.name);
+        return true;
+      });
+    }
+
+    function rowAwareShuffle(games, columns) {
+      const grouped = new Map();
+      games.forEach((game) => {
+        const key = game.duplicateKey || cleanKey(game.name);
+        if (!grouped.has(key)) grouped.set(key, []);
+        grouped.get(key).push(game);
+      });
+
+      grouped.forEach((items) => shuffleArray(items));
+
+      const remainingKeys = Array.from(grouped.keys());
+      const output = [];
+      const rowSize = Math.max(1, columns || 1);
+
+      while (remainingKeys.length) {
+        const rowKeys = new Set(output.slice(-rowSize + 1).map((game) => game.duplicateKey));
+        const previousKey = output.length ? output[output.length - 1].duplicateKey : "";
+        let candidates = remainingKeys.filter((key) => key !== previousKey && !rowKeys.has(key));
+
+        if (!candidates.length) {
+          candidates = remainingKeys.filter((key) => key !== previousKey);
+        }
+        if (!candidates.length) {
+          candidates = remainingKeys;
+        }
+
+        const key = candidates[Math.floor(Math.random() * candidates.length)];
+        const bucket = grouped.get(key);
+        output.push(bucket.pop());
+
+        if (!bucket.length) {
+          grouped.delete(key);
+          remainingKeys.splice(remainingKeys.indexOf(key), 1);
+        }
+      }
+
+      return output;
+    }
+
+    function getGridColumns() {
+      const styles = window.getComputedStyle(els.grid);
+      const columns = styles.gridTemplateColumns.split(" ").filter(Boolean).length;
+      if (columns > 1) return columns;
+      const cardWidth = window.matchMedia("(max-width: 640px)").matches ? 128 : 144;
+      return Math.max(1, Math.floor(els.grid.clientWidth / cardWidth));
+    }
+
+    function shuffleArray(items) {
+      const array = [...items];
+      for (let index = array.length - 1; index > 0; index -= 1) {
+        const swapIndex = Math.floor(Math.random() * (index + 1));
+        [array[index], array[swapIndex]] = [array[swapIndex], array[index]];
+      }
+      return array;
+    }
+
+    function debounce(fn, delay) {
+      let timer;
+      return (...args) => {
+        clearTimeout(timer);
+        timer = setTimeout(() => fn(...args), delay);
+      };
+    }
+
+    function embedFor(url, title) {
+      return `<iframe src="${escapeAttr(url)}" title="${escapeAttr(title)}" style="width:100%;height:640px;border:0;" allow="fullscreen; autoplay; gamepad" allowfullscreen></iframe>`;
+    }
+
+    async function copyText(text) {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+        return;
+      }
+      const temp = document.createElement("textarea");
+      temp.value = text;
+      temp.style.position = "fixed";
+      temp.style.opacity = "0";
+      document.body.appendChild(temp);
+      temp.select();
+      document.execCommand("copy");
+      temp.remove();
+    }
+
+    function toast(message) {
+      els.toast.textContent = message;
+      els.toast.classList.add("show");
+      clearTimeout(toast.timer);
+      toast.timer = setTimeout(() => els.toast.classList.remove("show"), 2200);
+    }
+
+    function cleanKey(value) {
+      return String(value || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+    }
+
+    function slug(value) {
+      return String(value || "")
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "")
+        .slice(0, 90);
+    }
+
+    function hashCode(value) {
+      let hash = 0;
+      for (let index = 0; index < value.length; index += 1) {
+        hash = ((hash << 5) - hash + value.charCodeAt(index)) | 0;
+      }
+      return Math.abs(hash).toString(36);
+    }
+
+    function escapeHtml(value) {
+      return String(value || "").replace(/[&<>"']/g, (char) => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#039;"
+      }[char]));
+    }
+
+    function escapeAttr(value) {
+      return escapeHtml(value).replace(/`/g, "&#096;");
+    }
+  </script>
+</body>
+</html>
