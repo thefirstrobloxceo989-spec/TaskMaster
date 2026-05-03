@@ -1,12 +1,33 @@
 .app2-shell {
   min-height: 100svh;
-  display: grid;
-  place-items: center;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 26px;
   padding: 24px;
   background:
     radial-gradient(circle at 20% 20%, rgba(102, 203, 255, 0.28), transparent 45%),
     radial-gradient(circle at 80% 80%, rgba(255, 167, 90, 0.24), transparent 40%),
     linear-gradient(140deg, #0f172a, #111827 55%, #1f2937);
+}
+
+.landing-copy {
+  text-align: center;
+  color: #f8fafc;
+}
+
+.landing-copy h1 {
+  margin: 0 0 10px;
+  font-size: clamp(2rem, 3.5vw, 3rem);
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+}
+
+.landing-copy p {
+  margin: 0;
+  color: rgba(248, 250, 252, 0.9);
+  font-size: clamp(0.95rem, 1.8vw, 1.2rem);
 }
 
 .glass-bar {
