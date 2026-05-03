@@ -32,8 +32,8 @@
 
 .glass-bar {
   display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
   gap: 12px;
   padding: 18px;
   border-radius: 18px;
@@ -42,6 +42,19 @@
   backdrop-filter: blur(14px) saturate(140%);
   -webkit-backdrop-filter: blur(14px) saturate(140%);
   box-shadow: 0 14px 38px rgba(15, 23, 42, 0.45);
+}
+
+.button-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+}
+
+.action-control {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .glass-button {
@@ -69,4 +82,55 @@
 .glass-button:focus-visible {
   outline: 2px solid rgba(255, 255, 255, 0.95);
   outline-offset: 2px;
+}
+
+.repeat-options {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.32);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+}
+
+.repeat-options input,
+.repeat-options select {
+  min-height: 36px;
+  border: 1px solid rgba(255, 255, 255, 0.36);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+  color: #f8fafc;
+  font: 600 14px/1.2 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.repeat-options input {
+  width: 72px;
+  padding: 0 12px;
+}
+
+.repeat-options select {
+  padding: 0 28px 0 12px;
+}
+
+.repeat-options input:focus-visible,
+.repeat-options select:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.95);
+  outline-offset: 2px;
+}
+
+@media (max-width: 560px) {
+  .glass-bar {
+    width: min(100%, 360px);
+  }
+
+  .button-row,
+  .action-control {
+    width: 100%;
+  }
+
+  .action-control {
+    justify-content: center;
+    flex-wrap: wrap;
+  }
 }
