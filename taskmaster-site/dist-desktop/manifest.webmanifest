@@ -1,0 +1,19 @@
+{
+  "name": "TaskMaster",
+  "short_name": "TaskMaster",
+  "description": "Record and replay browser-window automation actions.",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "any",
+  "theme_color": "#0f172a",
+  "background_color": "#0f172a",
+  "icons": [
+    {
+      "src": "app-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

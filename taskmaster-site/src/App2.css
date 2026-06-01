@@ -75,6 +75,17 @@
   border-color: rgba(255, 255, 255, 0.65);
 }
 
+.glass-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+  transform: none;
+}
+
+.glass-button:disabled:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
 .glass-button:active {
   transform: translateY(0);
 }
@@ -139,6 +150,23 @@
 
 .status-row p {
   margin: 0;
+  font-weight: 700;
+}
+
+.state-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-top: 12px;
+}
+
+.state-row span {
+  padding: 6px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(248, 250, 252, 0.78);
+  font-size: 0.78rem;
   font-weight: 700;
 }
 
