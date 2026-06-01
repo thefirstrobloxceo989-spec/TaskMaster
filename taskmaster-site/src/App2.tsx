@@ -181,7 +181,7 @@ function App2() {
 
     const handleInstalled = () => {
       setInstallPrompt(null)
-      setStatusMessage('TaskMaster is installed as an app.')
+      setStatusMessage('Taskmaster is installed as an app.')
       addLog('App installed')
     }
 
@@ -448,7 +448,7 @@ function App2() {
     setInstallPrompt(null)
     setStatusMessage(
       choice.outcome === 'accepted'
-        ? 'TaskMaster is installing as an app.'
+        ? 'Taskmaster is installing as an app.'
         : 'App install was dismissed.',
     )
     addLog(`Install ${choice.outcome}`)
@@ -461,7 +461,7 @@ function App2() {
       return
     }
 
-    setStatusMessage('Enable TaskMaster in Accessibility, then restart the app if needed.')
+    setStatusMessage('Enable Taskmaster in Accessibility, then restart the app if needed.')
     addLog('Opened Accessibility settings')
   }
 
@@ -515,7 +515,7 @@ function App2() {
   return (
     <main className="app2-shell">
       <header className="landing-copy">
-        <h1>TaskMaster</h1>
+        <h1>Taskmaster</h1>
         <p>
           An AI automation tool that will forever revolutionize the automation
           industry.

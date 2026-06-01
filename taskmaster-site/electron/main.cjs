@@ -10,7 +10,7 @@ function createWindow() {
     height: 760,
     minWidth: 760,
     minHeight: 620,
-    title: 'TaskMaster',
+    title: 'Taskmaster',
     icon: path.join(__dirname, '..', 'public', 'app-icon.svg'),
     backgroundColor: '#0f172a',
     webPreferences: {
