@@ -45,10 +45,12 @@ type RecordedStep = {
 }
 
 const TAB_CHANNEL = 'taskmaster-tab-actions'
+const CONFIGURED_API_BASE_URL = import.meta.env.VITE_TASKMASTER_API_BASE_URL || null
 
 type DesktopInfo = {
   platform: string
   accessibilityTrusted: boolean | null
+  apiBaseUrl?: string | null
 }
 
 type NativeStepResult = {
@@ -56,9 +58,46 @@ type NativeStepResult = {
   message?: string
 }
 
+type RecordingStatus = 'idle' | 'recording' | 'paused'
+
+type RecordingCurrent = {
+  id: string | null
+  status: RecordingStatus
+  startedAt: string | null
+  eventCount: number
+}
+
+type SavedRecording = {
+  id: string
+  status: 'saved'
+  eventCount: number
+  path: string
+}
+
+type DesktopRecordingEvent = {
+  id: number
+  type: 'mouseDown' | 'mouseUp' | 'keyDown' | 'keyUp' | 'wheel'
+  delay: number
+  x: number | null
+  y: number | null
+  keycode: number | null
+  altKey: boolean
+  ctrlKey: boolean
+  metaKey: boolean
+  shiftKey: boolean
+  appName: string | null
+  windowTitle: string | null
+}
+
+type DesktopRecordingFile = {
+  id: string
+  events: DesktopRecordingEvent[]
+}
+
 declare global {
   interface Window {
     taskmasterDesktop?: {
+      getApiBaseUrl: () => Promise<string | null>
       getInfo: () => Promise<DesktopInfo>
       openAccessibilitySettings: () => Promise<NativeStepResult>
       playStep: (step: RecordedStep) => Promise<NativeStepResult>
@@ -78,6 +117,14 @@ function App2() {
   const [activityLog, setActivityLog] = useState<string[]>([])
   const [linkedTabCount, setLinkedTabCount] = useState(1)
   const [desktopInfo, setDesktopInfo] = useState<DesktopInfo | null>(null)
+  const [apiBaseUrl, setApiBaseUrl] = useState<string | null>(CONFIGURED_API_BASE_URL)
+  const [desktopRecording, setDesktopRecording] = useState<RecordingCurrent>({
+    id: null,
+    status: 'idle',
+    startedAt: null,
+    eventCount: 0,
+  })
+  const [savedRecording, setSavedRecording] = useState<SavedRecording | null>(null)
   const [installPrompt, setInstallPrompt] =
     useState<BeforeInstallPromptEvent | null>(null)
 
@@ -86,8 +133,6 @@ function App2() {
   const linkedTabs = useRef(new Map<string, number>())
   const messageHandler = useRef<(message: TabMessage) => void>(() => {})
   const actionStatusRef = useRef<ActionStatus>('idle')
-  const lastRecordedAt = useRef(0)
-  const stepId = useRef(1)
   const stopActionRequested = useRef(false)
   const actionPaused = useRef(false)
   const actionRunning = useRef(false)
@@ -104,6 +149,18 @@ function App2() {
     actionStatusRef.current = status
     setActionStatus(status)
   }
+
+  const syncRecordingState = useCallback(async () => {
+    if (!apiBaseUrl) return
+
+    const recording = await requestRecordingApi<RecordingCurrent>(
+      apiBaseUrl,
+      '/api/recordings/current',
+    )
+    setDesktopRecording(recording)
+    setIsRecording(recording.status !== 'idle')
+    setIsRecordingPaused(recording.status === 'paused')
+  }, [apiBaseUrl])
 
   useEffect(() => {
     if (!('BroadcastChannel' in window)) {
@@ -164,13 +221,43 @@ function App2() {
     window.taskmasterDesktop?.getInfo().then((info) => {
       if (!isMounted) return
       setDesktopInfo(info)
+      setApiBaseUrl(info.apiBaseUrl || null)
       addLog('Desktop app mode enabled')
+    })
+
+    window.taskmasterDesktop?.getApiBaseUrl().then((baseUrl) => {
+      if (!isMounted || !baseUrl) return
+      setApiBaseUrl(baseUrl)
     })
 
     return () => {
       isMounted = false
     }
   }, [addLog])
+
+  useEffect(() => {
+    if (!apiBaseUrl) return
+
+    const timeout = window.setTimeout(() => {
+      void syncRecordingState().catch((error) => {
+        setStatusMessage(error.message)
+      })
+    }, 0)
+
+    return () => window.clearTimeout(timeout)
+  }, [apiBaseUrl, syncRecordingState])
+
+  useEffect(() => {
+    if (!apiBaseUrl || desktopRecording.status === 'idle') return
+
+    const interval = window.setInterval(() => {
+      void syncRecordingState().catch((error) => {
+        setStatusMessage(error.message)
+      })
+    }, 1000)
+
+    return () => window.clearInterval(interval)
+  }, [apiBaseUrl, desktopRecording.status, syncRecordingState])
 
   useEffect(() => {
     const handleBeforeInstallPrompt = (event: Event) => {
@@ -194,99 +281,102 @@ function App2() {
     }
   }, [addLog])
 
-  useEffect(() => {
-    if (!isRecording) return
-
-    const recordStep = (stepData: Omit<RecordedStep, 'id' | 'delay'>) => {
-      if (isRecordingPaused) return
-      const now = Date.now()
-      const delay = Math.max(160, now - lastRecordedAt.current)
-      lastRecordedAt.current = now
-      const step = { id: stepId.current, delay, ...stepData }
-      stepId.current += 1
-      setRecordedSteps((steps) => [...steps, step])
-      addLog(`Recorded ${stepData.label}`)
+  const startRecording = async () => {
+    if (!apiBaseUrl) {
+      setStatusMessage('Recording backend is not connected.')
+      return
     }
 
-    const handlePointerDown = (event: PointerEvent) => {
-      const target = event.target as HTMLElement
-      if (target.closest('.app2-controls')) return
-      const targetName = describeTarget(target)
-      recordStep({
-        type: 'click',
-        label: `click ${targetName} at ${Math.round(event.clientX)}, ${Math.round(event.clientY)}`,
-        selector: getTargetSelector(target),
-        x: event.clientX,
-        y: event.clientY,
-        screenX: event.screenX,
-        screenY: event.screenY,
+    try {
+      const recording = await requestRecordingApi<RecordingCurrent>(
+        apiBaseUrl,
+        '/api/recordings/start',
+        { method: 'POST' },
+      )
+      setDesktopRecording(recording)
+      setSavedRecording(null)
+      setRecordedSteps([])
+      setIsRecording(recording.status !== 'idle')
+      setIsRecordingPaused(recording.status === 'paused')
+      setStatusMessage('Recording started by the backend.')
+      addLog(`Recording started: ${recording.id}`)
+    } catch (error) {
+      setStatusMessage(getErrorMessage(error))
+    }
+  }
+
+  const stopRecording = async () => {
+    if (!apiBaseUrl) {
+      setStatusMessage('Recording backend is not connected.')
+      return
+    }
+
+    try {
+      const result = await requestRecordingApi<SavedRecording>(
+        apiBaseUrl,
+        '/api/recordings/stop',
+        { method: 'POST' },
+      )
+      setSavedRecording(result)
+      setDesktopRecording({
+        id: null,
+        status: 'idle',
+        startedAt: null,
+        eventCount: result.eventCount,
       })
+      const savedSteps = await loadDesktopRecordingSteps(apiBaseUrl, result.id)
+      setRecordedSteps(savedSteps)
+      setIsRecording(false)
+      setIsRecordingPaused(false)
+      setStatusMessage(`Recording stopped and saved with ${savedSteps.length} runnable step(s).`)
+      addLog(`Saved ${result.id}`)
+    } catch (error) {
+      setStatusMessage(getErrorMessage(error))
     }
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if ((event.target as HTMLElement).closest('.app2-controls')) return
-      recordStep({
-        type: 'keyboard',
-        label: `press ${formatShortcut(event)}`,
-        selector: getTargetSelector(event.target as HTMLElement),
-        key: event.key,
-        code: event.code,
-        ctrlKey: event.ctrlKey,
-        altKey: event.altKey,
-        shiftKey: event.shiftKey,
-        metaKey: event.metaKey,
-      })
-    }
-
-    document.addEventListener('pointerdown', handlePointerDown, true)
-    document.addEventListener('keydown', handleKeyDown, true)
-
-    return () => {
-      document.removeEventListener('pointerdown', handlePointerDown, true)
-      document.removeEventListener('keydown', handleKeyDown, true)
-    }
-  }, [addLog, isRecording, isRecordingPaused])
-
-  const startRecording = () => {
-    stepId.current = 1
-    lastRecordedAt.current = Date.now()
-    setRecordedSteps([])
-    setIsRecording(true)
-    setIsRecordingPaused(false)
-    setStatusMessage('Recording browser-window clicks, exact areas, and keyboard shortcuts.')
-    addLog('Recording started')
   }
 
-  const stopRecording = () => {
-    if (!isRecording) {
-      setStatusMessage('No recording is currently running.')
+  const pauseRecording = async () => {
+    if (!apiBaseUrl) {
+      setStatusMessage('Recording backend is not connected.')
       return
     }
-    setIsRecording(false)
-    setIsRecordingPaused(false)
-    setStatusMessage(`Recording stopped with ${recordedSteps.length} step(s).`)
-    addLog('Recording stopped')
+
+    try {
+      const recording = await requestRecordingApi<RecordingCurrent>(
+        apiBaseUrl,
+        '/api/recordings/pause',
+        { method: 'POST' },
+      )
+      setDesktopRecording(recording)
+      setIsRecording(recording.status !== 'idle')
+      setIsRecordingPaused(recording.status === 'paused')
+      setStatusMessage('Recording paused by the backend.')
+      addLog('Recording paused')
+    } catch (error) {
+      setStatusMessage(getErrorMessage(error))
+    }
   }
 
-  const pauseRecording = () => {
-    if (!isRecording) {
-      setStatusMessage('Start recording before pausing.')
+  const resumeRecording = async () => {
+    if (!apiBaseUrl) {
+      setStatusMessage('Recording backend is not connected.')
       return
     }
-    setIsRecordingPaused(true)
-    setStatusMessage('Recording paused.')
-    addLog('Recording paused')
-  }
 
-  const resumeRecording = () => {
-    if (!isRecording) {
-      setStatusMessage('Start recording before resuming.')
-      return
+    try {
+      const recording = await requestRecordingApi<RecordingCurrent>(
+        apiBaseUrl,
+        '/api/recordings/resume',
+        { method: 'POST' },
+      )
+      setDesktopRecording(recording)
+      setIsRecording(recording.status !== 'idle')
+      setIsRecordingPaused(recording.status === 'paused')
+      setStatusMessage('Recording resumed by the backend.')
+      addLog('Recording resumed')
+    } catch (error) {
+      setStatusMessage(getErrorMessage(error))
     }
-    lastRecordedAt.current = Date.now()
-    setIsRecordingPaused(false)
-    setStatusMessage('Recording resumed.')
-    addLog('Recording resumed')
   }
 
   const runAction = () => {
@@ -422,15 +512,25 @@ function App2() {
   }
 
   const clearRecording = () => {
+    if (apiBaseUrl && isRecording) {
+      setStatusMessage('Stop the desktop recording before clearing the current view.')
+      return
+    }
     broadcast({ type: 'clear' })
     applyClearRecording()
   }
 
   const applyClearRecording = () => {
     setRecordedSteps([])
+    setSavedRecording(null)
+    setDesktopRecording({
+      id: null,
+      status: 'idle',
+      startedAt: null,
+      eventCount: 0,
+    })
     setIsRecording(false)
     setIsRecordingPaused(false)
-    stepId.current = 1
     setStatusMessage('Recorded steps cleared.')
     addLog('Recording cleared')
   }
@@ -498,6 +598,12 @@ function App2() {
 
   const hasRecordedSteps = recordedSteps.length > 0
   const isDesktopApp = Boolean(desktopInfo)
+  const recordingEventCount = apiBaseUrl
+    ? isRecording
+      ? desktopRecording.eventCount
+      : recordedSteps.length
+    : recordedSteps.length
+  const hasRecordingEvents = recordingEventCount > 0
   const recordingStatusText = isRecordingPaused
     ? 'Recording paused'
     : isRecording
@@ -559,7 +665,7 @@ function App2() {
             type="button"
             className="glass-button"
             onClick={clearRecording}
-            disabled={!hasRecordedSteps && !isRecording}
+            disabled={!hasRecordedSteps && !isRecording && !hasRecordingEvents}
           >
             Clear
           </button>
@@ -645,9 +751,9 @@ function App2() {
           <span>{recordingStatusText}</span>
           <span>{actionStatusText}</span>
           <span>
-            {hasRecordedSteps
-              ? `${recordedSteps.length} step${recordedSteps.length === 1 ? '' : 's'} ready`
-              : 'No steps ready'}
+            {hasRecordingEvents
+              ? `${recordingEventCount} event${recordingEventCount === 1 ? '' : 's'} captured`
+              : 'No events captured'}
           </span>
           <span>
             {linkedTabCount === 1
@@ -660,15 +766,30 @@ function App2() {
           )}
         </div>
         <p className="capture-note">
-          The desktop app can replay native clicks and simple keys after macOS
-          Accessibility permission is enabled. Full global recording still needs
-          a native input hook helper.
+          {apiBaseUrl
+            ? `Desktop recording is controlled by ${apiBaseUrl} and saved locally as JSON.`
+            : 'Web mode records only interactions inside this page. Global recording requires the desktop app.'}
+          {savedRecording ? ` Last saved: ${savedRecording.id}.` : ''}
         </p>
         <div className="automation-grid">
           <div>
             <h2>Recorded steps</h2>
             <ol className="step-list">
-              {recordedSteps.length ? (
+              {apiBaseUrl ? (
+                recordedSteps.length ? (
+                  recordedSteps.map((step) => (
+                    <li key={step.id}>
+                      {step.label}
+                      <span>{Math.round(step.delay / 100) / 10}s</span>
+                    </li>
+                  ))
+                ) : (
+                  <li>
+                    {desktopRecording.id || savedRecording?.id || 'No active desktop recording'}
+                    <span>{recordingEventCount}</span>
+                  </li>
+                )
+              ) : recordedSteps.length ? (
                 recordedSteps.map((step) => (
                   <li key={step.id}>
                     {step.label}
@@ -694,6 +815,74 @@ function App2() {
       </section>
     </main>
   )
+}
+
+async function requestRecordingApi<T>(
+  apiBaseUrl: string,
+  endpoint: string,
+  init?: RequestInit,
+) {
+  const response = await fetch(`${apiBaseUrl}${endpoint}`, {
+    headers: { 'Content-Type': 'application/json' },
+    ...init,
+  })
+  const payload = await response.json().catch(() => null)
+
+  if (!response.ok) {
+    throw new Error(payload?.error || `Recording API failed with ${response.status}.`)
+  }
+
+  return payload as T
+}
+
+function getErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : 'Recording request failed.'
+}
+
+async function loadDesktopRecordingSteps(apiBaseUrl: string, recordingId: string) {
+  const recording = await requestRecordingApi<DesktopRecordingFile>(
+    apiBaseUrl,
+    `/api/recordings/${encodeURIComponent(recordingId)}`,
+  )
+
+  return recording.events.flatMap((event, index): RecordedStep[] => {
+    const delay = Math.max(80, Number.isFinite(event.delay) ? event.delay : 0)
+
+    if (event.type === 'mouseDown' && event.x !== null && event.y !== null) {
+      return [
+        {
+          id: index + 1,
+          type: 'click',
+          label: `click screen ${Math.round(event.x)}, ${Math.round(event.y)}`,
+          delay,
+          screenX: event.x,
+          screenY: event.y,
+        },
+      ]
+    }
+
+    if (event.type === 'keyDown' && event.keycode !== null) {
+      const key = getKeyFromUiohookCode(event.keycode)
+      if (!key) return []
+
+      return [
+        {
+          id: index + 1,
+          type: 'keyboard',
+          label: `press ${formatRecordedShortcut(key, event)}`,
+          delay,
+          key,
+          code: getDomCodeFromKey(key),
+          altKey: event.altKey,
+          ctrlKey: event.ctrlKey,
+          metaKey: event.metaKey,
+          shiftKey: event.shiftKey,
+        },
+      ]
+    }
+
+    return []
+  }).map((step, index) => ({ ...step, id: index + 1 }))
 }
 
 async function playRecordedStep(step: RecordedStep, preferNative = false) {
@@ -751,14 +940,6 @@ async function playRecordedStep(step: RecordedStep, preferNative = false) {
   return false
 }
 
-function describeTarget(target: HTMLElement) {
-  const text = target.textContent?.trim().replace(/\s+/g, ' ')
-  if (text) return text.slice(0, 36)
-  if (target.id) return `#${target.id}`
-  if (target.getAttribute('aria-label')) return target.getAttribute('aria-label') || target.tagName.toLowerCase()
-  return target.tagName.toLowerCase()
-}
-
 function findPlaybackTarget(step: RecordedStep) {
   if (step.selector) {
     const selectedTarget = document.querySelector(step.selector)
@@ -770,42 +951,6 @@ function findPlaybackTarget(step: RecordedStep) {
   }
 
   return null
-}
-
-function getTargetSelector(target: HTMLElement) {
-  if (!target || target === document.body) return 'body'
-  if (target.id) return `#${CSS.escape(target.id)}`
-
-  const path: string[] = []
-  let element: HTMLElement | null = target
-
-  while (element && element !== document.body && path.length < 5) {
-    let selector = element.tagName.toLowerCase()
-
-    const className = Array.from(element.classList)
-      .filter((name) => !name.startsWith('vite-'))
-      .slice(0, 2)
-      .map((name) => `.${CSS.escape(name)}`)
-      .join('')
-    selector += className
-
-    const parent: HTMLElement | null = element.parentElement
-    if (parent) {
-      const tagName = element.tagName
-      const siblings = Array.from(parent.children).filter(
-        (child): child is HTMLElement =>
-          child instanceof HTMLElement && child.tagName === tagName,
-      )
-      if (siblings.length > 1) {
-        selector += `:nth-of-type(${siblings.indexOf(element) + 1})`
-      }
-    }
-
-    path.unshift(selector)
-    element = parent
-  }
-
-  return path.join(' > ')
 }
 
 function applyKeyboardInput(target: Element, step: RecordedStep) {
@@ -840,19 +985,119 @@ function applyKeyboardInput(target: Element, step: RecordedStep) {
   target.dispatchEvent(new Event('change', { bubbles: true }))
 }
 
-function formatShortcut(event: KeyboardEvent) {
+function formatRecordedShortcut(
+  key: string,
+  event: Pick<DesktopRecordingEvent, 'altKey' | 'ctrlKey' | 'metaKey' | 'shiftKey'>,
+) {
   const keys = []
   if (event.metaKey) keys.push('Cmd')
   if (event.ctrlKey) keys.push('Ctrl')
   if (event.altKey) keys.push('Alt')
   if (event.shiftKey) keys.push('Shift')
+  keys.push(key.length === 1 ? key.toUpperCase() : key)
+  return keys.join('+')
+}
 
-  const key = event.key.length === 1 ? event.key.toUpperCase() : event.key
-  if (!['Meta', 'Control', 'Alt', 'Shift'].includes(event.key)) {
-    keys.push(key)
+const UIOHOOK_KEY_NAMES: Record<number, string> = {
+  1: 'Escape',
+  2: '1',
+  3: '2',
+  4: '3',
+  5: '4',
+  6: '5',
+  7: '6',
+  8: '7',
+  9: '8',
+  10: '9',
+  11: '0',
+  12: '-',
+  13: '=',
+  14: 'Backspace',
+  15: 'Tab',
+  16: 'q',
+  17: 'w',
+  18: 'e',
+  19: 'r',
+  20: 't',
+  21: 'y',
+  22: 'u',
+  23: 'i',
+  24: 'o',
+  25: 'p',
+  26: '[',
+  27: ']',
+  28: 'Enter',
+  30: 'a',
+  31: 's',
+  32: 'd',
+  33: 'f',
+  34: 'g',
+  35: 'h',
+  36: 'j',
+  37: 'k',
+  38: 'l',
+  39: ';',
+  40: "'",
+  41: '`',
+  43: '\\',
+  44: 'z',
+  45: 'x',
+  46: 'c',
+  47: 'v',
+  48: 'b',
+  49: 'n',
+  50: 'm',
+  51: ',',
+  52: '.',
+  53: '/',
+  57: ' ',
+  59: 'F1',
+  60: 'F2',
+  61: 'F3',
+  62: 'F4',
+  63: 'F5',
+  64: 'F6',
+  65: 'F7',
+  66: 'F8',
+  67: 'F9',
+  68: 'F10',
+  87: 'F11',
+  88: 'F12',
+  3655: 'Home',
+  3657: 'PageUp',
+  3663: 'End',
+  3665: 'PageDown',
+  3666: 'Insert',
+  3667: 'Delete',
+  57416: 'ArrowUp',
+  57419: 'ArrowLeft',
+  57421: 'ArrowRight',
+  57424: 'ArrowDown',
+}
+
+function getKeyFromUiohookCode(keycode: number) {
+  return UIOHOOK_KEY_NAMES[keycode] || null
+}
+
+function getDomCodeFromKey(key: string) {
+  if (/^[a-z]$/i.test(key)) return `Key${key.toUpperCase()}`
+  if (/^[0-9]$/.test(key)) return `Digit${key}`
+
+  const namedCodes: Record<string, string> = {
+    ' ': 'Space',
+    '-': 'Minus',
+    '=': 'Equal',
+    '[': 'BracketLeft',
+    ']': 'BracketRight',
+    '\\': 'Backslash',
+    ';': 'Semicolon',
+    "'": 'Quote',
+    '`': 'Backquote',
+    ',': 'Comma',
+    '.': 'Period',
+    '/': 'Slash',
   }
-
-  return keys.length ? keys.join('+') : key
+  return namedCodes[key] || key
 }
 
 function wait(milliseconds: number) {

@@ -16,7 +16,8 @@
   },
   "dependencies": {
     "react": "^19.2.5",
-    "react-dom": "^19.2.5"
+    "react-dom": "^19.2.5",
+    "uiohook-napi": "^1.5.4"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
