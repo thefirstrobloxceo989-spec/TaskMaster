@@ -1,6 +1,7 @@
 const { contextBridge, ipcRenderer } = require('electron')
 
 contextBridge.exposeInMainWorld('taskmasterDesktop', {
+  getApiBaseUrl: () => ipcRenderer.invoke('taskmaster:get-api-base-url'),
   getInfo: () => ipcRenderer.invoke('taskmaster:get-desktop-info'),
   openAccessibilitySettings: () =>
     ipcRenderer.invoke('taskmaster:open-accessibility-settings'),
