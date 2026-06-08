@@ -1,5 +1,16 @@
 import './App2.css'
 import { useCallback, useEffect, useRef, useState } from 'react'
+import {
+  getCurrentRecordingApi,
+  loadRecordingApi,
+  pauseRecordingApi,
+  resumeRecordingApi,
+  startRecordingApi,
+  stopRecordingApi,
+  type DesktopRecordingEvent,
+  type RecordingCurrent,
+  type SavedRecording,
+} from './api/recordings'
 
 type RepeatMode = 'times' | 'seconds' | 'minutes'
 type ActionStatus = 'idle' | 'running' | 'paused' | 'stopping'
@@ -56,42 +67,6 @@ type DesktopInfo = {
 type NativeStepResult = {
   ok: boolean
   message?: string
-}
-
-type RecordingStatus = 'idle' | 'recording' | 'paused'
-
-type RecordingCurrent = {
-  id: string | null
-  status: RecordingStatus
-  startedAt: string | null
-  eventCount: number
-}
-
-type SavedRecording = {
-  id: string
-  status: 'saved'
-  eventCount: number
-  path: string
-}
-
-type DesktopRecordingEvent = {
-  id: number
-  type: 'mouseDown' | 'mouseUp' | 'keyDown' | 'keyUp' | 'wheel'
-  delay: number
-  x: number | null
-  y: number | null
-  keycode: number | null
-  altKey: boolean
-  ctrlKey: boolean
-  metaKey: boolean
-  shiftKey: boolean
-  appName: string | null
-  windowTitle: string | null
-}
-
-type DesktopRecordingFile = {
-  id: string
-  events: DesktopRecordingEvent[]
 }
 
 declare global {
@@ -153,10 +128,7 @@ function App2() {
   const syncRecordingState = useCallback(async () => {
     if (!apiBaseUrl) return
 
-    const recording = await requestRecordingApi<RecordingCurrent>(
-      apiBaseUrl,
-      '/api/recordings/current',
-    )
+    const recording = await getCurrentRecordingApi(apiBaseUrl)
     setDesktopRecording(recording)
     setIsRecording(recording.status !== 'idle')
     setIsRecordingPaused(recording.status === 'paused')
@@ -288,11 +260,7 @@ function App2() {
     }
 
     try {
-      const recording = await requestRecordingApi<RecordingCurrent>(
-        apiBaseUrl,
-        '/api/recordings/start',
-        { method: 'POST' },
-      )
+      const recording = await startRecordingApi(apiBaseUrl)
       setDesktopRecording(recording)
       setSavedRecording(null)
       setRecordedSteps([])
@@ -312,11 +280,7 @@ function App2() {
     }
 
     try {
-      const result = await requestRecordingApi<SavedRecording>(
-        apiBaseUrl,
-        '/api/recordings/stop',
-        { method: 'POST' },
-      )
+      const result = await stopRecordingApi(apiBaseUrl)
       setSavedRecording(result)
       setDesktopRecording({
         id: null,
@@ -342,11 +306,7 @@ function App2() {
     }
 
     try {
-      const recording = await requestRecordingApi<RecordingCurrent>(
-        apiBaseUrl,
-        '/api/recordings/pause',
-        { method: 'POST' },
-      )
+      const recording = await pauseRecordingApi(apiBaseUrl)
       setDesktopRecording(recording)
       setIsRecording(recording.status !== 'idle')
       setIsRecordingPaused(recording.status === 'paused')
@@ -364,11 +324,7 @@ function App2() {
     }
 
     try {
-      const recording = await requestRecordingApi<RecordingCurrent>(
-        apiBaseUrl,
-        '/api/recordings/resume',
-        { method: 'POST' },
-      )
+      const recording = await resumeRecordingApi(apiBaseUrl)
       setDesktopRecording(recording)
       setIsRecording(recording.status !== 'idle')
       setIsRecordingPaused(recording.status === 'paused')
@@ -598,6 +554,7 @@ function App2() {
 
   const hasRecordedSteps = recordedSteps.length > 0
   const isDesktopApp = Boolean(desktopInfo)
+  const hasRecordingBackend = Boolean(apiBaseUrl)
   const recordingEventCount = apiBaseUrl
     ? isRecording
       ? desktopRecording.eventCount
@@ -633,7 +590,7 @@ function App2() {
             type="button"
             className="glass-button"
             onClick={startRecording}
-            disabled={isRecording}
+            disabled={!hasRecordingBackend || isRecording}
           >
             Record
           </button>
@@ -641,7 +598,7 @@ function App2() {
             type="button"
             className="glass-button"
             onClick={stopRecording}
-            disabled={!isRecording}
+            disabled={!hasRecordingBackend || !isRecording}
           >
             Stop
           </button>
@@ -649,7 +606,7 @@ function App2() {
             type="button"
             className="glass-button"
             onClick={pauseRecording}
-            disabled={!isRecording || isRecordingPaused}
+            disabled={!hasRecordingBackend || !isRecording || isRecordingPaused}
           >
             Pause
           </button>
@@ -657,7 +614,7 @@ function App2() {
             type="button"
             className="glass-button"
             onClick={resumeRecording}
-            disabled={!isRecording || !isRecordingPaused}
+            disabled={!hasRecordingBackend || !isRecording || !isRecordingPaused}
           >
             Resume
           </button>
@@ -761,6 +718,7 @@ function App2() {
               : `${linkedTabCount} tabs linked`}
           </span>
           <span>{isDesktopApp ? 'Desktop app' : 'Web app'}</span>
+          {!hasRecordingBackend && <span>Desktop install required</span>}
           {desktopInfo?.accessibilityTrusted === false && (
             <span>Accessibility needed</span>
           )}
@@ -768,7 +726,7 @@ function App2() {
         <p className="capture-note">
           {apiBaseUrl
             ? `Desktop recording is controlled by ${apiBaseUrl} and saved locally as JSON.`
-            : 'Web mode records only interactions inside this page. Global recording requires the desktop app.'}
+            : 'Desktop recording requires the TaskMaster desktop app. The web build is a static UI only.'}
           {savedRecording ? ` Last saved: ${savedRecording.id}.` : ''}
         </p>
         <div className="automation-grid">
@@ -817,33 +775,12 @@ function App2() {
   )
 }
 
-async function requestRecordingApi<T>(
-  apiBaseUrl: string,
-  endpoint: string,
-  init?: RequestInit,
-) {
-  const response = await fetch(`${apiBaseUrl}${endpoint}`, {
-    headers: { 'Content-Type': 'application/json' },
-    ...init,
-  })
-  const payload = await response.json().catch(() => null)
-
-  if (!response.ok) {
-    throw new Error(payload?.error || `Recording API failed with ${response.status}.`)
-  }
-
-  return payload as T
-}
-
 function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : 'Recording request failed.'
 }
 
 async function loadDesktopRecordingSteps(apiBaseUrl: string, recordingId: string) {
-  const recording = await requestRecordingApi<DesktopRecordingFile>(
-    apiBaseUrl,
-    `/api/recordings/${encodeURIComponent(recordingId)}`,
-  )
+  const recording = await loadRecordingApi(apiBaseUrl, recordingId)
 
   return recording.events.flatMap((event, index): RecordedStep[] => {
     const delay = Math.max(80, Number.isFinite(event.delay) ? event.delay : 0)
