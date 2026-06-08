@@ -270,6 +270,7 @@ function App2() {
       addLog(`Recording started: ${recording.id}`)
     } catch (error) {
       setStatusMessage(getErrorMessage(error))
+      await syncRecordingState().catch(() => {})
     }
   }
 
