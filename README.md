@@ -1,2 +1,2 @@
 # TaskMaster
-An AI automation tool that will forever revolutionize the automation industry. 
+A simple macro recorder for making repetitive tasks fun and easy. WIP
